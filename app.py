@@ -1,7 +1,6 @@
 from sys import argv
 from math import ceil
 from PIL import Image
-import numpy as np
 
 
 HEADER_BIN_INTERVAL = 15
@@ -52,33 +51,44 @@ def create_header_bin(num):
 
 def replace_bitmap_data(bitmap, data, bits_to_take):
     data_index = 0
-    for row in bitmap:
-        for pixel in row:
-            for i in range(len(pixel)):
-                channel = pixel[i]
-                if data_index >= len(data):
-                    return
-                curr_bits = data[data_index: data_index + bits_to_take]
-                channel_bits = lengthen_bin(dec_to_bin(channel), 8)
-                for i in range(len(curr_bits)):
-                    channel_bits[i] = curr_bits[i]
-                pixel[i] = bin_to_dec(channel_bits)
-                data_index += bits_to_take
+    for i in range(len(bitmap)):
+        if data_index >= len(data):
+            return
+        new_pixel = []
+        for channel in bitmap[i]:
+            if data_index >= len(data):
+                new_pixel.append(channel)
+                continue
+
+            data_bits = data[data_index: data_index + bits_to_take]
+            channel_bits = lengthen_bin(dec_to_bin(channel), 8)
+
+            for i in range(len(data_bits)):
+                channel_bits[i] = data_bits[i]
+
+            new_pixel.append(bin_to_dec(channel_bits))
+            data_index += bits_to_take
+        bitmap[i] = tuple(new_pixel)
 
 
 def file_to_bitmap(path, bitmap):
     file_binary = file_to_binary(path)
     num_bytes = len(file_binary) // 8
     header_bin = create_header_bin(num_bytes)
-    data = header_bin + file_binary
+    main_data = header_bin + file_binary
 
-    bits_to_take = ceil(len(data) / bitmap.size)
+    bits_to_take = ceil((len(main_data) + 3) / len(bitmap))
     if bits_to_take > 8:
         raise Exception('Data too big for image bitmap')
 
-    print(bitmap.flags)
+    data = lengthen_bin(dec_to_bin(bits_to_take), 3) + main_data
     replace_bitmap_data(bitmap, data, bits_to_take)
-    print(bitmap)
+
+
+def save_bitmap(old_img, bitmap, img_output):
+    new_img = Image.new(old_img.mode, old_img.size)
+    new_img.putdata(bitmap)
+    new_img.save(img_output)
 
 
 def main():
@@ -90,9 +100,10 @@ def main():
     img_output = argv[3]
 
     img = Image.open(img_input)
-    bitmap = np.asarray(img)
+    bitmap = list(img.getdata())
 
     file_to_bitmap(file_to_encode, bitmap)
+    save_bitmap(img, bitmap, img_output)
 
 
 if __name__ == '__main__':
