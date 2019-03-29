@@ -49,39 +49,41 @@ def create_header_bin(num):
     return header_bin
 
 
+def modify_pixel(in_pixel, data):
+    out_pixel = []
+    for i, channel in enumerate(in_pixel):
+        channel_bits = lengthen_bin(dec_to_bin(channel), 8)
+        for j in range(len(data[i])):
+            channel_bits[j] = data[i][j]
+        out_pixel.append(bin_to_dec(channel_bits))
+    return tuple(out_pixel)
+
+
 def replace_bitmap_data(bitmap, data, bits_to_take):
+    btt_bin = lengthen_bin(dec_to_bin(bits_to_take), 3)
+    bitmap[0] = modify_pixel(bitmap[0], [[bit] for bit in btt_bin])
+
     data_index = 0
-    for i in range(len(bitmap)):
+    for i in range(1, len(bitmap)):
         if data_index >= len(data):
             return
-        new_pixel = []
-        for channel in bitmap[i]:
-            if data_index >= len(data):
-                new_pixel.append(channel)
-                continue
-
-            data_bits = data[data_index: data_index + bits_to_take]
-            channel_bits = lengthen_bin(dec_to_bin(channel), 8)
-
-            for i in range(len(data_bits)):
-                channel_bits[i] = data_bits[i]
-
-            new_pixel.append(bin_to_dec(channel_bits))
+        data_bits = []
+        for i in range(bitmap[i]):
+            data_bits.append(data[data_index: data_index + bits_to_take])
             data_index += bits_to_take
-        bitmap[i] = tuple(new_pixel)
+        bitmap[i] = modify_pixel(bitmap[i], data_bits)
 
 
-def file_to_bitmap(path, bitmap):
+def encode_bitmap(path, bitmap):
     file_binary = file_to_binary(path)
     num_bytes = len(file_binary) // 8
     header_bin = create_header_bin(num_bytes)
-    main_data = header_bin + file_binary
+    data = header_bin + file_binary
 
-    bits_to_take = ceil((len(main_data) + 3) / len(bitmap))
+    bits_to_take = ceil(len(data) / (len(bitmap) - 1))
     if bits_to_take > 8:
         raise Exception('Data too big for image bitmap')
 
-    data = lengthen_bin(dec_to_bin(bits_to_take), 3) + main_data
     replace_bitmap_data(bitmap, data, bits_to_take)
 
 
@@ -91,13 +93,12 @@ def save_bitmap(old_img, bitmap, img_output):
     new_img.save(img_output)
 
 
-def main():
-    if len(argv) < 4:
-        raise Exception('Needs 3 params')
+def encode(img_input, file_to_encode, img_output):
+    img = Image.open(img_input)
+    bitmap = list(img.getdata())
 
-    img_input = argv[1]
-    file_to_encode = argv[2]
-    img_output = argv[3]
+    encode_bitmap(file_to_encode, bitmap)
+    save_bitmap(img, bitmap, img_output)
 
     img = Image.open(img_input)
     bitmap = list(img.getdata())
@@ -107,4 +108,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    args = argv[1:]
+    if len(args) == 3:
+        encode(*args)
+    else:
+        raise Exception("Wrong usage.")
