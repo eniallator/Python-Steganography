@@ -23,7 +23,7 @@ def bin_to_dec(bin_num):
     return dec
 
 
-def lengthen_bin(bin_num, length):
+def resize_bin(bin_num, length):
     return [bin_num[i] if i < len(bin_num) else 0 for i in range(length)]
 
 
@@ -33,13 +33,13 @@ def file_to_binary(path):
         file_handle
         file_bytes = file_handle.read()
         for b in file_bytes:
-            binary += lengthen_bin(dec_to_bin(b), 8)
+            binary += resize_bin(dec_to_bin(b), 8)
     return binary
 
 
 def create_header_bin(num):
     bin_num = dec_to_bin(num)
-    working_bin = lengthen_bin(bin_num, ceil(len(bin_num) / HEADER_BIN_INTERVAL) * HEADER_BIN_INTERVAL)
+    working_bin = resize_bin(bin_num, ceil(len(bin_num) / HEADER_BIN_INTERVAL) * HEADER_BIN_INTERVAL)
     header_bin = []
     for i in range(ceil(len(working_bin) / HEADER_BIN_INTERVAL)):
         if header_bin != []:
@@ -52,7 +52,7 @@ def create_header_bin(num):
 def modify_pixel(in_pixel, data):
     out_pixel = []
     for i, channel in enumerate(in_pixel):
-        channel_bits = lengthen_bin(dec_to_bin(channel), 8)
+        channel_bits = resize_bin(dec_to_bin(channel), 8)
         for j in range(len(data[i])):
             channel_bits[j] = data[i][j]
         out_pixel.append(bin_to_dec(channel_bits))
@@ -60,7 +60,7 @@ def modify_pixel(in_pixel, data):
 
 
 def replace_bitmap_data(bitmap, data, bits_to_take):
-    btt_bin = lengthen_bin(dec_to_bin(bits_to_take), 3)
+    btt_bin = resize_bin(dec_to_bin(bits_to_take), 3)
     bitmap[0] = modify_pixel(bitmap[0], [[bit] for bit in btt_bin])
 
     data_index = 0
@@ -68,7 +68,7 @@ def replace_bitmap_data(bitmap, data, bits_to_take):
         if data_index >= len(data):
             return
         data_bits = []
-        for i in range(bitmap[i]):
+        for i in range(len(bitmap[i])):
             data_bits.append(data[data_index: data_index + bits_to_take])
             data_index += bits_to_take
         bitmap[i] = modify_pixel(bitmap[i], data_bits)
@@ -100,16 +100,58 @@ def encode(img_input, file_to_encode, img_output):
     encode_bitmap(file_to_encode, bitmap)
     save_bitmap(img, bitmap, img_output)
 
+
+def get_bits_taken(pixel):
+    bt_bin = []
+    for channel in pixel:
+        channel_bits = resize_bin(dec_to_bin(channel), 1)
+        bt_bin.append(channel_bits[0])
+    return bin_to_dec(bt_bin)
+
+
+def get_file_size(bitmap, bits_taken):
+    size_bin = []
+    abs_index = 0
+    index = 0
+    num_continues = True
+    curr_bin = []
+    while num_continues:
+        for channel in bitmap[index]:
+            next_bin = resize_bin(dec_to_bin(channel), bits_taken)
+            print(resize_bin(dec_to_bin(channel), 8))
+            to_take = len(next_bin) - len(curr_bin) + HEADER_BIN_INTERVAL + 1
+            curr_bin += next_bin[:to_take]
+            abs_index += min(to_take, bits_taken)
+            if len(curr_bin) > HEADER_BIN_INTERVAL:
+                print(curr_bin)
+                size_bin += curr_bin[:-1]
+                num_continues = curr_bin[-1] == 1
+                curr_bin = []
+                if not num_continues:
+                    break
+        index += 1
+    file_size = bin_to_dec(size_bin)
+    return (abs_index, file_size)
+
+
+def decode_bitmap(bitmap):
+    bits_taken = get_bits_taken(bitmap[0])
+    index, file_size = get_file_size(bitmap, bits_taken)
+    print(index, file_size)
+    # file_bin = get_file_bin(bitmap[1:], bits_taken)
+
+
+def decode(img_input, file_output):
     img = Image.open(img_input)
     bitmap = list(img.getdata())
-
-    file_to_bitmap(file_to_encode, bitmap)
-    save_bitmap(img, bitmap, img_output)
+    file_bin = decode_bitmap(bitmap)
 
 
 if __name__ == '__main__':
     args = argv[1:]
     if len(args) == 3:
         encode(*args)
+    elif len(args) == 2:
+        decode(*args)
     else:
         raise Exception("Wrong usage.")
