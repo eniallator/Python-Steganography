@@ -112,7 +112,7 @@ def get_bits_taken(pixel):
 def get_file_size(bitmap, bits_taken):
     size_bin = []
     abs_index = 0
-    index = 0
+    index = 1
     num_continues = True
     curr_bin = []
     while num_continues:
@@ -136,7 +136,6 @@ def decode_bitmap(bitmap):
     bits_taken = get_bits_taken(bitmap[0])
     index, file_size = get_file_size(bitmap, bits_taken)
     print(index, file_size)
-    # file_bin = get_file_bin(bitmap[1:], bits_taken)
 
 
 def decode(img_input, file_output):
