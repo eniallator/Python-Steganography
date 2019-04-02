@@ -68,7 +68,7 @@ def replace_bitmap_data(bitmap, data, bits_to_take):
         if data_index >= len(data):
             return
         data_bits = []
-        for i in range(len(bitmap[i])):
+        for j in range(len(bitmap[i])):
             data_bits.append(data[data_index: data_index + bits_to_take])
             data_index += bits_to_take
         bitmap[i] = modify_pixel(bitmap[i], data_bits)
@@ -118,12 +118,10 @@ def get_file_size(bitmap, bits_taken):
     while num_continues:
         for channel in bitmap[index]:
             next_bin = resize_bin(dec_to_bin(channel), bits_taken)
-            print(resize_bin(dec_to_bin(channel), 8))
             to_take = len(next_bin) - len(curr_bin) + HEADER_BIN_INTERVAL + 1
             curr_bin += next_bin[:to_take]
             abs_index += min(to_take, bits_taken)
             if len(curr_bin) > HEADER_BIN_INTERVAL:
-                print(curr_bin)
                 size_bin += curr_bin[:-1]
                 num_continues = curr_bin[-1] == 1
                 curr_bin = []
