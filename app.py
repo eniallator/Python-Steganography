@@ -132,16 +132,48 @@ def get_file_size(bitmap, bits_taken):
     return (abs_index, file_size)
 
 
+def get_file_data(bitmap, offset, file_size, bits_taken):
+    pixel_data_bits = 3 * bits_taken
+    index = offset // pixel_data_bits
+    initial_offset = offset % pixel_data_bits
+    curr_bin = []
+    file_data = b''
+    for i in range(ceil(offset / bits_taken / 3), len(bitmap)):
+        pixel = bitmap[i]
+        if initial_offset > pixel_data_bits:
+            initial_offset -= pixel_data_bits
+            continue
+        for channel in pixel:
+            if initial_offset > bits_taken:
+                initial_offset -= bits_taken
+                continue
+            channel_bits = resize_bin(dec_to_bin(channel), bits_taken)
+            if initial_offset > 0:
+                curr_bin += channel_bits[initial_offset:]
+                initial_offset = 0
+            else:
+                curr_bin += channel_bits
+            if len(curr_bin) >= 8:
+                file_data += chr(bin_to_dec(curr_bin[:8])).encode('utf-8')
+                curr_bin = curr_bin[8:]
+
+            if len(file_data) >= file_size:
+                return file_data
+
+
 def decode_bitmap(bitmap):
     bits_taken = get_bits_taken(bitmap[0])
-    index, file_size = get_file_size(bitmap, bits_taken)
-    print(index, file_size)
+    offset, file_size = get_file_size(bitmap, bits_taken)
+    return get_file_data(bitmap, offset, file_size, bits_taken)
 
 
 def decode(img_input, file_output):
     img = Image.open(img_input)
     bitmap = list(img.getdata())
-    file_bin = decode_bitmap(bitmap)
+    file_data = decode_bitmap(bitmap)
+
+    with open(file_output, 'wb') as file_handle:
+        file_handle.write(file_data)
 
 
 if __name__ == '__main__':
