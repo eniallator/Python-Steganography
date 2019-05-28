@@ -60,7 +60,7 @@ def modify_pixel(in_pixel, data):
 
 
 def replace_bitmap_data(bitmap, data, bits_to_take):
-    btt_bin = resize_bin(dec_to_bin(bits_to_take), 3)
+    btt_bin = resize_bin(dec_to_bin(bits_to_take - 1), 3)
     bitmap[0] = modify_pixel(bitmap[0], [[bit] for bit in btt_bin])
 
     data_index = 0
@@ -79,8 +79,10 @@ def encode_bitmap(path, bitmap):
     num_bytes = len(file_binary) // 8
     header_bin = create_header_bin(num_bytes)
     data = header_bin + file_binary
+    print('Encoding ' + str(len(file_binary) // 8) + ' bytes')
 
     bits_to_take = ceil(len(data) / (len(bitmap) - 1))
+    print('Allocating ' + str(bits_to_take) + ' bit' + ('s' if bits_to_take > 1 else '') + ' per byte in the image bitmap')
     if bits_to_take > 8:
         raise Exception('Data too big for image bitmap')
 
@@ -106,7 +108,7 @@ def get_bits_taken(pixel):
     for channel in pixel:
         channel_bits = resize_bin(dec_to_bin(channel), 1)
         bt_bin.append(channel_bits[0])
-    return bin_to_dec(bt_bin)
+    return bin_to_dec(bt_bin) + 1
 
 
 def get_file_size(bitmap, bits_taken):
@@ -163,7 +165,9 @@ def get_file_data(bitmap, offset, file_size, bits_taken):
 
 def decode_bitmap(bitmap):
     bits_taken = get_bits_taken(bitmap[0])
+    print('Found ' + str(bits_taken) + ' bits per byte in the image bitmap')
     offset, file_size = get_file_size(bitmap, bits_taken)
+    print('Output file size will be ' + str(file_size) + ' bytes')
     return get_file_data(bitmap, offset, file_size, bits_taken)
 
 
